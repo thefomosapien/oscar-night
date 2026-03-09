@@ -67,11 +67,14 @@ export default function Home() {
     };
   }, []);
 
-  // Session persistence — restore nickname
+  // Session persistence — restore nickname from localStorage
   useEffect(() => {
-    const saved = sessionStorage.getItem(SESSION_KEY);
+    const saved = localStorage.getItem(SESSION_KEY);
     if (saved) setMyName(saved);
   }, []);
+
+  // Track whether we've restored predictions from the server
+  const hasRestoredPredictions = useRef(false);
 
   // Determine screen based on game state and player status
   useEffect(() => {
@@ -81,6 +84,9 @@ export default function Home() {
     }
     const me = gameState.players.find((p) => p.name === myName);
     if (!me) {
+      // Name is in localStorage but not in game — clear it
+      localStorage.removeItem(SESSION_KEY);
+      setMyName('');
       setScreen('join');
       return;
     }
@@ -91,12 +97,13 @@ export default function Home() {
       setScreen('waiting');
     } else {
       setScreen('predict');
-      // Restore predictions from server
-      if (Object.keys(me.predictions).length > 0 && Object.keys(localPredictions).length === 0) {
+      // Restore predictions from server on first load (e.g. returning user)
+      if (!hasRestoredPredictions.current && Object.keys(me.predictions).length > 0) {
+        hasRestoredPredictions.current = true;
         setLocalPredictions(me.predictions);
       }
     }
-  }, [gameState, myName, localPredictions]);
+  }, [gameState, myName]);
 
   const updateGameState = useCallback(async (players: Player[], results?: Record<string, string>) => {
     const update: { players: Player[]; results?: Record<string, string>; updated_at: string } = {
@@ -114,9 +121,11 @@ export default function Home() {
     if (gameState.players.some((p) => p.name === name)) return;
     const newPlayer: Player = { name, predictions: {}, lockedIn: false };
     const newPlayers = [...gameState.players, newPlayer];
-    sessionStorage.setItem(SESSION_KEY, name);
+    localStorage.setItem(SESSION_KEY, name);
     setMyName(name);
     setNicknameInput('');
+    // Optimistically update local state so screen transitions immediately
+    setGameState({ ...gameState, players: newPlayers });
     await updateGameState(newPlayers);
   };
 
@@ -165,7 +174,7 @@ export default function Home() {
       .from('game_state')
       .update({ players: [], results: {}, updated_at: new Date().toISOString() })
       .eq('id', 'main');
-    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
     setMyName('');
     setLocalPredictions({});
     setScreen('join');
