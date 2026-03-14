@@ -266,43 +266,59 @@ export default function Home() {
         )}
 
         {/* Player lobby */}
-        <div style={{ marginBottom: 24 }}>
-          <p style={{ color: MUTED, fontSize: 13, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-            Players
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {Array.from({ length: MAX_PLAYERS }).map((_, i) => {
-              const player = gameState?.players[i];
-              return (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1,
-                    padding: '16px 12px',
-                    background: player ? PANEL : 'transparent',
-                    border: player ? `1px solid ${BORDER}` : `2px dashed ${BORDER}`,
-                    borderRadius: 10,
-                    textAlign: 'center',
-                  }}
-                >
-                  {player ? (
-                    <>
-                      <div style={{ fontSize: 24 }}>🎬</div>
-                      <p style={{ fontSize: 14, fontWeight: 500, marginTop: 4, color: player.name === myName ? GOLD : '#fff' }}>
-                        {player.name}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ fontSize: 24, opacity: 0.3 }}>👤</div>
-                      <p style={{ fontSize: 13, color: MUTED, marginTop: 4 }}>Waiting…</p>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {(() => {
+          const gameFull = gameState && gameState.players.length >= MAX_PLAYERS;
+          const unrecognized = gameFull && !myName;
+          return (
+            <div style={{ marginBottom: 24 }}>
+              <p style={{ color: MUTED, fontSize: 13, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+                {unrecognized ? 'Who are you?' : 'Players'}
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {Array.from({ length: MAX_PLAYERS }).map((_, i) => {
+                  const player = gameState?.players[i];
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        if (unrecognized && player) {
+                          localStorage.setItem(SESSION_KEY, player.name);
+                          setMyName(player.name);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '16px 12px',
+                        background: player ? PANEL : 'transparent',
+                        border: player ? `1px solid ${BORDER}` : `2px dashed ${BORDER}`,
+                        borderRadius: 10,
+                        textAlign: 'center',
+                        cursor: unrecognized && player ? 'pointer' : 'default',
+                      }}
+                    >
+                      {player ? (
+                        <>
+                          <div style={{ fontSize: 24 }}>🎬</div>
+                          <p style={{ fontSize: 14, fontWeight: 500, marginTop: 4, color: player.name === myName ? GOLD : '#fff' }}>
+                            {player.name}
+                          </p>
+                          {unrecognized && (
+                            <p style={{ fontSize: 11, color: GOLD, marginTop: 4 }}>Tap to select</p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 24, opacity: 0.3 }}>👤</div>
+                          <p style={{ fontSize: 13, color: MUTED, marginTop: 4 }}>Waiting…</p>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Scoring explainer */}
         <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 20, marginBottom: 24 }}>
