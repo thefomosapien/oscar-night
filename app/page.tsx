@@ -34,7 +34,7 @@ export default function Home() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [liveTab, setLiveTab] = useState<'all' | 'mark' | 'category'>('all');
   const [confirmLock, setConfirmLock] = useState(false);
-  const [viewingPicks, setViewingPicks] = useState(false);
+  const [spectating, setSpectating] = useState(false);
   const [celebration, setCelebration] = useState<{ names: string[]; category: string } | null>(null);
   const pillsRef = useRef<HTMLDivElement>(null);
 
@@ -79,8 +79,13 @@ export default function Home() {
 
   // Determine screen based on game state and player status
   useEffect(() => {
-    if (!gameState || !myName) {
+    if (!gameState) {
       setScreen('join');
+      return;
+    }
+    const allLocked = gameState.players.length === MAX_PLAYERS && gameState.players.every((p) => p.lockedIn);
+    if (!myName) {
+      setScreen(spectating && allLocked ? 'live' : 'join');
       return;
     }
     const me = gameState.players.find((p) => p.name === myName);
@@ -91,11 +96,8 @@ export default function Home() {
       setScreen('join');
       return;
     }
-    const allLocked = gameState.players.length === MAX_PLAYERS && gameState.players.every((p) => p.lockedIn);
-    if (allLocked && !viewingPicks) {
+    if (allLocked) {
       setScreen('live');
-    } else if (allLocked && viewingPicks) {
-      setScreen('predict');
     } else if (me.lockedIn) {
       setScreen('waiting');
     } else {
@@ -106,7 +108,7 @@ export default function Home() {
         setLocalPredictions(me.predictions);
       }
     }
-  }, [gameState, myName, viewingPicks]);
+  }, [gameState, myName, spectating]);
 
   const updateGameState = useCallback(async (players: Player[], results?: Record<string, string>) => {
     const update: { players: Player[]; results?: Record<string, string>; updated_at: string } = {
@@ -337,6 +339,25 @@ export default function Home() {
           </p>
         </div>
 
+        {/* View All Picks (when game is locked) */}
+        {gameState && gameState.players.length === MAX_PLAYERS && gameState.players.every((p) => p.lockedIn) && (
+          <button
+            onClick={() => setSpectating(true)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: PANEL,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 8,
+              color: '#fff',
+              fontSize: 13,
+              marginBottom: 8,
+            }}
+          >
+            View All Picks
+          </button>
+        )}
+
         {/* Reset button */}
         <button
           onClick={() => setShowResetModal(true)}
@@ -360,28 +381,8 @@ export default function Home() {
 
   // ─── PREDICT SCREEN ───
   if (screen === 'predict') {
-    const me = gameState?.players.find((p) => p.name === myName);
-    const isReadOnly = !!me?.lockedIn;
     return (
       <div style={containerStyle}>
-        {/* Back to scoreboard (read-only mode) */}
-        {isReadOnly && (
-          <button
-            onClick={() => setViewingPicks(false)}
-            style={{
-              marginBottom: 16,
-              padding: '10px 16px',
-              background: PANEL,
-              border: `1px solid ${BORDER}`,
-              borderRadius: 8,
-              color: GOLD,
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            ← Back to Scoreboard
-          </button>
-        )}
         {/* Progress bar */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -460,7 +461,7 @@ export default function Home() {
               return (
                 <button
                   key={nominee}
-                  onClick={() => !isReadOnly && handleSelectNominee(currentCat.id, nominee)}
+                  onClick={() => handleSelectNominee(currentCat.id, nominee)}
                   style={{
                     padding: '14px 16px',
                     background: isSelected ? `${GOLD}15` : PANEL,
@@ -473,7 +474,6 @@ export default function Home() {
                     alignItems: 'center',
                     gap: 12,
                     transition: 'all 0.15s',
-                    cursor: isReadOnly ? 'default' : 'pointer',
                   }}
                 >
                   <span
@@ -872,22 +872,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* View picks + Reset buttons */}
-        <div style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button
-            onClick={() => setViewingPicks(true)}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: PANEL,
-              border: `1px solid ${BORDER}`,
-              borderRadius: 8,
-              color: '#fff',
-              fontSize: 13,
-            }}
-          >
-            View My Picks
-          </button>
+        {/* Reset button */}
+        <div style={{ padding: '20px 0' }}>
           <button
             onClick={() => setShowResetModal(true)}
             style={{
